@@ -1,0 +1,44 @@
+---
+
+- name: assert that GRID_HOME is not empty
+  assert:
+    that:
+      - "oracle_gi_info.oracle_home|default('', true)|length > 0"
+    fail_msg: "'oracle_gi_info.oracle_home' must not be empty"
+  when: oracle_gatherinfo_listener_from_gi_registry
+  tags:
+    - oracle_gatherinfo_listener_precheck
+
+- name: collect Oracle listener information from Grid Infrastructure registry
+  shell: |
+    {{ oracle_gi_info.oracle_home }}/bin/crsctl status resource -w "TYPE = ora.listener.type" -f | egrep '^NAME=|^STATE=|^ORACLE_HOME=|^PORT=' | paste -d " " - - - - | sed 's/ /,/g' | sed 's|%CRS_HOME%|{{ oracle_gi_info.oracle_home }}|g' | sed 's/NAME=ora./NAME=/g' | sed 's/\.lsnr,/,/g'
+    echo
+  register: _oracle_gatherinfo_listener_registered_listeners_info_shell
+  check_mode: no
+  when: oracle_gatherinfo_listener_from_gi_registry
+  tags:
+    - oracle_gatherinfo_listener_collect_registered_listeners_info
+
+- name: registered Oracle listeners - set variables (1)
+  set_fact:
+    oracle_gatherinfo_listener_registered_item: "{{ oracle_gatherinfo_listener_registered_item|default({}) | combine( { 'listener_name': item | regex_replace('^NAME=([^,]+).*$', '\\1' ) } ) | combine( { 'oracle_home': item | regex_replace('.*ORACLE_HOME=([^,]+).*$', '\\1' ) } ) | combine( { 'port': item | regex_replace('.*PORT=([^,]+).*$', '\\1' ) } ) | combine( { 'state': item | regex_replace('.*STATE=([^,]+).*$', '\\1' ) } ) }}"
+  with_items:
+    - "{{ _oracle_gatherinfo_listener_registered_listeners_info_shell.stdout_lines }}"
+  loop_control:
+    label: "[gathering facts about listener: {{ item | regex_replace('^NAME=([^,]+).*$', '\\1' ) }}]"
+  register: _oracle_gatherinfo_listener_registered_listeners_info_list
+  when: oracle_gatherinfo_listener_from_gi_registry and _oracle_gatherinfo_listener_registered_listeners_info_shell != ""
+  tags:
+    - oracle_gatherinfo_listener_collect_registered_listeners_info
+
+- name: registered Oracle listeners - set variables (2)
+  set_fact:
+    oracle_gatherinfo_listener_registered_listeners: "{{ oracle_gatherinfo_listener_registered_listeners + [ item.ansible_facts.oracle_gatherinfo_listener_registered_item ] }}"
+  with_items:
+    - "{{ _oracle_gatherinfo_listener_registered_listeners_info_list.results|default([],true) }}"
+  loop_control:
+    label: "[gathering facts about listener: {{ item.item|default('',true) | regex_replace('^NAME=([^,]+).*$', '\\1' ) }}]"
+  when: oracle_gatherinfo_listener_from_gi_registry and _oracle_gatherinfo_listener_registered_listeners_info_shell != ""
+  tags:
+    - oracle_gatherinfo_listener_collect_registered_listeners_info
+

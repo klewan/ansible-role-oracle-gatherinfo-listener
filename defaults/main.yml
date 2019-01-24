@@ -1,0 +1,30 @@
+---
+
+# collect data about Oracle listeners registered in GI OHAS
+oracle_gatherinfo_listener_from_gi_registry: true
+
+# List describing Oracle listeners registered in GI OHAS - Oracle High Availability Services (dynamically populated)
+oracle_gatherinfo_listener_registered_listeners: []
+
+# e.g.:
+#oracle_gatherinfo_listener_registered_listeners:
+#  listener_name: "LISTENER"
+#  oracle_home: "/u01/app/12.1.0/grid"
+#  port: "1521"
+#  state: "ONLINE"
+
+# collect data about active/running Oracle listeners
+oracle_gatherinfo_listener_running: true
+
+# List describing active/running Oracle listeners
+oracle_gatherinfo_listener_running_listeners: []
+
+# e.g.:
+#oracle_gatherinfo_listener_running_listeners:
+#  listener_name: "LISTENER"
+#  oracle_home: "/u01/app/12.1.0/grid"
+#  tns_admin: "/u01/app/12.1.0/grid/network/admin/"
+
+# print collected information about Oracle listeners
+oracle_gatherinfo_listener_print_collected_data: true
+

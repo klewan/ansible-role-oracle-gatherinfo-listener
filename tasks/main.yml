@@ -1,0 +1,18 @@
+---
+
+- import_tasks: listeners_registered.yml
+
+- import_tasks: listeners_running.yml
+
+- name: print collected data (1)
+  debug: var=oracle_gatherinfo_listener_registered_listeners
+  when: oracle_gatherinfo_listener_print_collected_data
+  tags:
+    - oracle_gatherinfo_listener_print_collected_data
+
+- name: print collected data (2)
+  debug: var=oracle_gatherinfo_listener_running_listeners
+  when: oracle_gatherinfo_listener_print_collected_data
+  tags:
+    - oracle_gatherinfo_listener_print_collected_data
+

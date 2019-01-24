@@ -1,0 +1,44 @@
+---
+
+- name: collect information about active/running Oracle listeners
+  shell: |
+    for LINE in $(ps -eaf | grep -w 'bin/tnslsnr' | grep -v grep | awk '{print $2,$9}' | sed 's/ /=/g' 2>/dev/null); do
+      export PID=$(echo $LINE | cut -d= -f1)
+      export LISTENER_NAME=$(echo $LINE | cut -d= -f2)
+      ORACLE_HOME=$(ls -l /proc/$PID/exe | awk -F'>' '{ print $2 }' | sed 's/\/bin\/tnslsnr$//' | sort | uniq | tr -d '[:blank:]')
+      TNS_ADMIN=$(cat /proc/$PID/environ | tr \\0 \\n | grep -w ^TNS_ADMIN | cut -d= -f2)
+      if [ "$TNS_ADMIN" == "" ]; then
+        TNS_ADMIN=$ORACLE_HOME/network/admin
+      fi
+      echo "ORACLE_HOME=$ORACLE_HOME,LISTENER_NAME=$LISTENER_NAME,TNS_ADMIN=$TNS_ADMIN" 2>/dev/null
+    done
+  ignore_errors: yes
+  register: _oracle_gatherinfo_listener_running_listeners_info_shell
+  check_mode: no
+  when: oracle_gatherinfo_listener_running
+  tags:
+    - oracle_gatherinfo_listener_collect_running_listeners_info
+
+- name: active/running Oracle listeners - set variables (1)
+  set_fact:
+    oracle_gatherinfo_listener_running_listeners_item: "{{ oracle_gatherinfo_listener_running_listeners_item|default({}) | combine( { 'oracle_home': item | regex_replace('^.*ORACLE_HOME=([^,]+).*$', '\\1' ) } ) | combine( { 'listener_name': item | regex_replace('^.*LISTENER_NAME=([^,]+).*$', '\\1' ) } ) | combine( { 'tns_admin': item | regex_replace('^.*TNS_ADMIN=([^,]+).*$', '\\1' ) } ) }}"
+  with_items:
+    - "{{ _oracle_gatherinfo_listener_running_listeners_info_shell.stdout_lines }}"
+  loop_control:
+    label: "[gathering facts about listener: {{ item | regex_replace('^.*LISTENER_NAME=([^,]+).*$', '\\1' ) }}]"
+  register: _oracle_gatherinfo_listener_running_listeners_info_list
+  when: oracle_gatherinfo_listener_running and _oracle_gatherinfo_listener_running_listeners_info_shell != ""
+  tags:
+    - oracle_gatherinfo_listener_collect_running_listeners_info
+
+- name: active/running Oracle listeners - set variables (2)
+  set_fact:
+    oracle_gatherinfo_listener_running_listeners: "{{ oracle_gatherinfo_listener_running_listeners + [ item.ansible_facts.oracle_gatherinfo_listener_running_listeners_item ] }}"
+  with_items:
+    - "{{ _oracle_gatherinfo_listener_running_listeners_info_list.results|default([],true) }}"
+  loop_control:
+    label: "[gathering facts about listener: {{ item.item|default('',true) | regex_replace('^.*LISTENER_NAME=([^,]+).*$', '\\1' ) }}]"
+  when: oracle_gatherinfo_listener_running and _oracle_gatherinfo_listener_running_listeners_info_shell != ""
+  tags:
+    - oracle_gatherinfo_listener_collect_running_listeners_info
+
